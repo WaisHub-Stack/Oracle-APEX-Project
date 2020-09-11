@@ -1,0 +1,366 @@
+CREATE OR REPLACE procedure APPS.xx_customer_merge (p_customer_number  CHAR, p_duplicate_number  CHAR, p_delete_duplicate_flag char, P_ORG_ID NUMBER) as
+
+l_reqid NUMBER;
+l_merge_id NUMBER;
+l_merge_header_id NUMBER;
+l_customer_id NUMBER;
+l_customer_number VARCHAR2(50);
+l_customer_name varchar2(100);
+l_customer_ref VARCHAR2(50);
+l_duplicate_id NUMBER;
+l_duplicate_number VARCHAR2(50);
+l_duplicate_name varchar2(100);
+l_duplicate_ref VARCHAR2(50);
+l_PROCESS_FLAG varchar2(50) := 'SAVED';
+l_priority varchar2(5) := 'P3';
+--v_resp_appl_id number := fnd_global.resp_appl_id;
+
+cursor c1 is 
+SELECT ROW_NUMBER() OVER (ORDER BY SITE_USE_ID) as sr_no,hca.cust_account_id customer_id,hca.account_number customer_number,hp.party_name,hcaS.ORIG_SYSTEM_REFERENCE customer_ref
+,hcas.CUST_ACCT_SITE_ID customer_address_id,hl.address1 customer_address,
+SITE_USE_ID customer_site_id,SITE_USE_CODE customer_site_code,location customer_location,
+hps.PARTY_SITE_NUMBER ,
+hcas.org_id
+FROM
+     hz_cust_acct_sites_all hcas,
+    hz_cust_site_uses_all hcsu,
+     hz_locations hl,
+     hz_party_sites hps,
+     hz_cust_accounts hca,hz_parties HP
+ where 
+hcas.cust_account_id = hca.cust_account_id
+and hcas.org_id = hcsu.org_id
+and hcas.CUST_ACCT_SITE_ID = hcsu.CUST_ACCT_SITE_ID
+--and hcSU.site_use_code= 'BILL_TO'
+and hcas.PARTY_SITE_ID = hps.party_site_id
+and hps.location_id = hl.location_id
+AND  hca.party_id  = HP. party_id
+and hca.status = 'A'
+and hcas.status= 'A'
+and hcsu.status= 'A'
+and hcas.org_id = P_ORG_ID
+ AND party_number = p_customer_number
+ order by SITE_USE_ID asc;  
+ 
+ cursor c2 is 
+SELECT ROW_NUMBER() OVER (ORDER BY SITE_USE_ID) as sr_no,hca.cust_account_id customer_id,hca.account_number customer_number,hp.party_name,hcaS.ORIG_SYSTEM_REFERENCE customer_ref,
+hcas.CUST_ACCT_SITE_ID customer_address_id,hl.address1 customer_address,
+SITE_USE_ID customer_site_id,SITE_USE_CODE customer_site_code,location customer_location,
+hps.PARTY_SITE_NUMBER ,
+hcas.org_id
+FROM
+     hz_cust_acct_sites_all hcas,
+    hz_cust_site_uses_all hcsu,
+     hz_locations hl,
+     hz_party_sites hps,
+     hz_cust_accounts hca,hz_parties HP
+ where 
+hcas.cust_account_id = hca.cust_account_id
+and hcas.org_id = hcsu.org_id
+and hcas.CUST_ACCT_SITE_ID = hcsu.CUST_ACCT_SITE_ID
+--and hcSU.site_use_code= 'BILL_TO'
+and hcas.PARTY_SITE_ID = hps.party_site_id
+and hps.location_id = hl.location_id
+AND  hca.party_id  = HP. party_id
+and hca.status = 'A'
+and hcas.status= 'A'
+and hcsu.status= 'A'
+and hcas.org_id = P_ORG_ID
+ AND party_number = p_duplicate_number
+ order by SITE_USE_ID asc;  
+ 
+ cursor c3 is 
+ SELECT hcm.* 
+ from ra_customer_merges_copy hcm,
+hz_parties HP,
+hz_cust_accounts_all hca,
+hz_parties HP_dup,
+hz_cust_accounts_all hca_dup
+where 
+hcm.customer_id = hca.cust_account_id
+and  hca.party_id  = HP. party_id
+ AND hp.party_number = p_customer_number
+ and hcm.DUPLICATE_ID = hca_dup.cust_account_id
+and  hca_dup.party_id  = HP_dup. party_id
+ AND hp_dup.party_number = p_duplicate_number
+ order by CUSTOMER_SITE_ID asc;
+
+BEGIN
+
+BEGIN
+SELECT ra_customer_merge_headers_s.nextval
+INTO l_merge_header_id
+FROM DUAL;
+
+SELECT hca.cust_account_id, hca.account_number, hca.ORIG_SYSTEM_REFERENCE,hp.party_name
+INTO l_customer_id, l_customer_number, l_customer_ref,l_customer_name
+FROM hz_cust_accounts hca,hz_parties hp
+WHERE hca.party_id = hp.party_id
+and hp.party_NUMBER = p_customer_number;
+
+SELECT hca.cust_account_id, hca.account_number, hca.orig_system_reference,hp.party_name
+INTO l_duplicate_id, l_duplicate_number, l_duplicate_ref,l_duplicate_name
+FROM hz_cust_accounts hca,hz_parties hp
+WHERE hca.party_id = hp.party_id
+and hp.party_NUMBER = p_duplicate_number;
+
+
+/*EXCEPTION
+WHEN OTHERS THEN
+null ;*/
+END;
+
+INSERT INTO ra_customer_merge_headers
+( CUSTOMER_MERGE_HEADER_ID
+,CREATION_DATE
+,CREATED_BY
+,LAST_UPDATE_DATE
+,LAST_UPDATED_BY
+,LAST_UPDATE_LOGIN
+,PROGRAM_ID
+,PROGRAM_APPLICATION_ID
+,PROGRAM_UPDATE_DATE
+,REQUEST_ID
+,CUSTOMER_ID
+,CUSTOMER_NAME
+,CUSTOMER_NUMBER
+,CUSTOMER_REF
+,DUPLICATE_ID
+,DUPLICATE_NAME
+,DUPLICATE_NUMBER
+,DUPLICATE_REF
+,DELETE_DUPLICATE_FLAG
+,PROCESS_FLAG
+,ATTRIBUTE_CATEGORY
+,ATTRIBUTE1
+,CUSTOMER_FIRST_NAME
+,CUSTOMER_LAST_NAME
+,CUSTOMER_TYPE
+,DUPLICATE_FIRST_NAME
+,DUPLICATE_LAST_NAME
+,DUPLICATE_TYPE
+,MERGE_REASON_CODE
+,MERGE_FAIL_MSG
+,priority 
+,ORG_ID)
+VALUES( l_merge_header_id
+,SYSDATE
+,'0' --created_by--
+,SYSDATE
+,'0'
+,'0' --last_update_login--
+,NULL
+,NULL
+,NULL
+,NULL --request_id--
+,l_customer_id --customer_id--
+,l_customer_name
+,l_customer_number
+,l_customer_ref
+,l_duplicate_id
+,l_duplicate_name
+,l_duplicate_number
+,l_duplicate_ref
+,p_delete_duplicate_flag
+,l_PROCESS_FLAG
+,NULL --DFF attribute_category--
+,NULL
+,NULL
+,NULL
+,NULL
+,NULL
+,NULL
+,NULL
+,NULL
+,NULL
+,l_priority
+,P_ORG_ID
+);
+
+begin
+for i in c1 loop
+
+delete from ra_customer_merges_copy;
+
+SELECT ra_customer_merges_s.nextval
+INTO l_merge_id
+FROM DUAL;
+
+
+
+insert into ra_customer_merges_copy
+(   CUSTOMER_MERGE_ID,
+   CREATION_DATE,
+   CREATED_BY,
+   LAST_UPDATE_DATE,
+   LAST_UPDATED_BY,
+   PROCESS_FLAG,
+   CUSTOMER_ID,
+   CUSTOMER_NAME,
+   CUSTOMER_NUMBER,
+   CUSTOMER_REF,
+   CUSTOMER_ADDRESS_ID,
+   CUSTOMER_ADDRESS,
+   CUSTOMER_SITE_ID,
+   CUSTOMER_SITE_CODE,
+   CUSTOMER_LOCATION,
+   CUSTOMER_PRIMARY_FLAG,
+   DELETE_DUPLICATE_FLAG,
+   CUSTOMER_SITE_NUMBER,
+   ORG_ID,
+   SR_NO)
+   values(
+   l_merge_id,
+   sysdate,
+   0,
+   sysdate,
+   0,
+   l_PROCESS_FLAG,
+   i.customer_id,
+   i.party_name,
+   i.customer_number,
+   i. customer_ref,
+   i. customer_address_id,
+   i.customer_address,
+   i. customer_site_id,
+   i. customer_site_code,
+   i. customer_location,
+   p_delete_duplicate_flag,
+   p_delete_duplicate_flag,
+i.PARTY_SITE_NUMBER ,
+i.org_id ,
+I.SR_NO  
+   );
+end loop;  ------main
+
+for j in c2 loop
+UPDATE ra_customer_merges_copy
+set   DUPLICATE_ADDRESS =j.customer_address,  
+   DUPLICATE_ADDRESS_ID =  j. customer_address_id,
+   DUPLICATE_ID = j.customer_id,
+   DUPLICATE_LOCATION = j.customer_location ,
+   DUPLICATE_NUMBER = j.customer_number,
+   duplicate_name = j.party_name,
+   DUPLICATE_REF = j.customer_ref,
+   DUPLICATE_SITE_CODE = j.customer_site_code,
+   DUPLICATE_SITE_ID = j.customer_site_id,
+   duplicate_primary_flag = p_delete_duplicate_flag,
+   CUSTOMER_MERGE_HEADER_ID = l_merge_header_id,
+   DUPLICATE_SITE_NUMBER = j.PARTY_SITE_NUMBER
+   WHERE SR_NO= J.SR_NO; 
+
+end loop;----duplictate
+
+
+
+
+for k in c3 loop
+insert into ra_customer_merges(
+CUSTOMER_MERGE_ID,
+   CREATION_DATE,
+   CREATED_BY,
+   LAST_UPDATE_DATE,
+   LAST_UPDATED_BY,
+   PROCESS_FLAG,
+   CUSTOMER_ID,
+   CUSTOMER_NAME,
+   CUSTOMER_NUMBER,
+   CUSTOMER_REF,
+   CUSTOMER_ADDRESS_ID,
+   CUSTOMER_ADDRESS,
+   CUSTOMER_SITE_ID,
+   CUSTOMER_SITE_CODE,
+   CUSTOMER_LOCATION,
+   CUSTOMER_PRIMARY_FLAG,
+   DELETE_DUPLICATE_FLAG,
+   CUSTOMER_SITE_NUMBER,
+   ORG_ID,
+    DUPLICATE_ADDRESS,
+   DUPLICATE_ADDRESS_Id,
+   DUPLICATE_ID,
+   duplicate_name,
+   DUPLICATE_LOCATION ,
+   DUPLICATE_NUMBER ,
+   DUPLICATE_REF ,
+   DUPLICATE_SITE_CODE,
+   DUPLICATE_SITE_ID,
+   CUSTOMER_MERGE_HEADER_ID,
+   DUPLICATE_SITE_NUMBER ,
+   DUPLICATE_PRIMARY_FLAG)
+   values(
+ k.CUSTOMER_MERGE_ID,
+ k.CREATION_DATE,
+   k.CREATED_BY,
+  k.LAST_UPDATE_DATE,
+   k.LAST_UPDATED_BY,
+   k.PROCESS_FLAG,
+   k.CUSTOMER_ID,
+   k.CUSTOMER_NAME,
+   k.CUSTOMER_NUMBER,
+   k.CUSTOMER_REF,
+   k.CUSTOMER_ADDRESS_ID,
+   k.CUSTOMER_ADDRESS,
+   k.CUSTOMER_SITE_ID,
+   k.CUSTOMER_SITE_CODE,
+   k.CUSTOMER_LOCATION,
+   K.CUSTOMER_PRIMARY_FLAG,
+  k.DELETE_DUPLICATE_FLAG,
+   k.CUSTOMER_SITE_NUMBER,
+   k.ORG_ID,
+    k.DUPLICATE_ADDRESS,
+   k.DUPLICATE_ADDRESS_Id,
+   k.DUPLICATE_ID,
+   k.duplicate_name,
+   k.DUPLICATE_LOCATION ,
+   k.DUPLICATE_NUMBER ,
+   k.DUPLICATE_REF ,
+   k.DUPLICATE_SITE_CODE,
+   k.DUPLICATE_SITE_ID,
+   k.CUSTOMER_MERGE_HEADER_ID,
+   k.DUPLICATE_SITE_NUMBER,
+   K.DUPLICATE_PRIMARY_FLAG
+   );
+
+end loop;
+
+end;
+
+
+begin 
+---fnd_global.apps_initialize(FND_PROFILE.VALUE('USER_ID'),fnd_profile.value('RESP_ID'),v_resp_appl_id );
+fnd_global.apps_initialize(1305,20678,222 );
+
+ l_reqid := FND_REQUEST.SUBMIT_REQUEST('AR', 'RAXMRG', 'Customer Merge',
+                                       to_char(sysdate,'DD-MON-YY HH24:MI:SS') ,FALSE, 
+                                       l_process_flag, l_duplicate_number,
+                                       l_customer_number,
+                                       l_priority,1,p_org_id,chr(0),
+                                       '','','','',
+                                       '','','','','','','','','','',
+                                       '','','','','','','','','','',
+                                       '','','','','','','','','','',
+                                       '','','','','','','','','','',
+                                       '','','','','','','','','','',
+                                       '','','','','','','','','','',
+                                       '','','','','','','','','','',
+                                       '','','','','','','','','','',
+                                       '','','','','','','','','' );
+   
+ 
+  COMMIT;
+  --
+  IF l_reqid = 0
+  THEN
+     dbms_output.put_line ('Concurrent request failed to submit');
+  ELSE
+     dbms_output.put_line('Successfully Submitted the Concurrent Request');
+  END IF;
+  --
+EXCEPTION
+WHEN OTHERS THEN
+  dbms_output.put_line('Error While Submitting Concurrent Request '||TO_CHAR(SQLCODE)||'-'||sqlerrm);      
+ 
+end;
+                                   
+END;
+/

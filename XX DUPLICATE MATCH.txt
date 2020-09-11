@@ -1,0 +1,188 @@
+CREATE OR REPLACE FORCE VIEW APPS.XX_DUPLICATE_MATCH
+(
+   MEMBER_N_ID,
+   FIRST_NAME,
+   LAST_NAME,
+   BIRTH_DATE,
+   MD_UNIVERSITY_DISP,
+   MD_YEAR_OBTAINED,
+   ADDRESS1,
+   ADDRESS2,
+   ADDRESS3,
+   ADDRESS4,
+   CITY,
+   PROVINCE,
+   POSTAL_CODE,
+   COUNTRY,
+   ORG_ID,
+   LINE_BREAK2,
+   LINE_BREAK3,
+   LINE_BREAK4,
+   MEMBER_N_ID2,
+   FIRST_NAME2,
+   LAST_NAME2,
+   BIRTH_DATE2,
+   ADDRESS1_2,
+   ADDRESS2_2,
+   ADDRESS3_2,
+   ADDRESS4_2,
+   LINE_BREAK2_2,
+   LINE_BREAK3_2,
+   LINE_BREAK4_2,
+   CITY2,
+   PROVINCE2,
+   POSTAL_CODE2,
+   COUNTRY2,
+   MATCH_BIRTHDAY,
+   MATCH_MD_UNIV,
+   MATCH_MD_YEAR,
+   MATCH_ADDR,
+   MATCH_LAST_NAME,
+   MATCH_FIRST_NAME,
+   MATCH_LAST_NAME2,
+   MATCH_FIRST_NAME2
+)
+AS
+     SELECT DISTINCT "MEMBER_N_ID",
+                     "FIRST_NAME",
+                     "LAST_NAME",
+                     "BIRTH_DATE",
+                     "MD_UNIVERSITY_DISP",
+                     "MD_YEAR_OBTAINED",
+                     "ADDRESS1",
+                     "ADDRESS2",
+                     "ADDRESS3",
+                     "ADDRESS4",
+                     "CITY",
+                     "PROVINCE",
+                     "POSTAL_CODE",
+                     "COUNTRY",
+                     "ORG_ID",
+                     "LINE_BREAK2",
+                     "LINE_BREAK3",
+                     "LINE_BREAK4",
+                     "MEMBER_N_ID2",
+                     "FIRST_NAME2",
+                     "LAST_NAME2",
+                     "BIRTH_DATE2",
+                     "ADDRESS1_2",
+                     "ADDRESS2_2",
+                     "ADDRESS3_2",
+                     "ADDRESS4_2",
+                     "LINE_BREAK2_2",
+                     "LINE_BREAK3_2",
+                     "LINE_BREAK4_2",
+                     "CITY2",
+                     "PROVINCE2",
+                     "POSTAL_CODE2",
+                     "COUNTRY2",
+                     "MATCH_BIRTHDAY",
+                     "MATCH_MD_UNIV",
+                     "MATCH_MD_YEAR",
+                     "MATCH_ADDR",
+                     "MATCH_LAST_NAME",
+                     "MATCH_FIRST_NAME",
+                     "MATCH_LAST_NAME2",
+                     "MATCH_FIRST_NAME2"
+       FROM (SELECT duplicate_match.*,
+                    NVL2 (duplicate_match.address2, '<BR>', '') line_break2,
+                    NVL2 (duplicate_match.address3, '<BR>', '') line_break3,
+                    NVL2 (duplicate_match.address4, '<BR>', '') line_break4,
+                    second_person.member_N_ID member_N_ID2,
+                    second_person.first_name first_name2,
+                    second_person.last_name last_name2,
+                    second_person.BIRTH_DATE birth_date2,
+                    -- second_person.MD_UNIVERSITY_DISP MD_UNIVERSITY_DISP2,
+                    --second_person.MD_YEAR_OBTAINED MD_YEAR_OBTAINED2 ,
+                    second_person.address1 address1_2,
+                    second_person.address2 address2_2,
+                    second_person.address3 address3_2,
+                    second_person.address4 address4_2,
+                    NVL2 (second_person.address2, '<BR>', '') line_break2_2,
+                    NVL2 (second_person.address3, '<BR>', '') line_break3_2,
+                    NVL2 (second_person.address4, '<BR>', '') line_break4_2,
+                    second_person.city city2,
+                    second_person.province province2,
+                    second_person.postal_code postal_code2,
+                    second_person.country country2,
+                    CASE
+                       WHEN (   duplicate_match.BIRTH_DATE =
+                                   second_person.BIRTH_DATE
+                             OR duplicate_match.BIRTH_DATE IS NULL
+                             OR second_person.BIRTH_DATE IS NULL)
+                       THEN
+                          1
+                       ELSE
+                          0
+                    END
+                       match_birthday,
+                    CASE
+                       WHEN (   duplicate_match.MD_UNIVERSITY_DISP =
+                                   second_person.MD_UNIVERSITY_DISP
+                             OR duplicate_match.MD_UNIVERSITY_DISP IS NULL
+                             OR second_person.MD_UNIVERSITY_DISP IS NULL)
+                       THEN
+                          1
+                       ELSE
+                          0
+                    END
+                       match_md_univ,
+                    CASE
+                       WHEN (   duplicate_match.MD_YEAR_OBTAINED =
+                                   second_person.MD_YEAR_OBTAINED
+                             OR second_person.MD_YEAR_OBTAINED IS NULL
+                             OR second_person.MD_YEAR_OBTAINED IS NULL)
+                       THEN
+                          1
+                       ELSE
+                          0
+                    END
+                       match_md_year,
+                    CASE
+                       WHEN (    duplicate_match.postal_code =
+                                    second_person.postal_code
+                             AND duplicate_match.country =
+                                    second_person.country)
+                       THEN
+                          1
+                       ELSE
+                          0
+                    END
+                       match_addr,
+                    UTL_MATCH.jaro_winkler (second_person.last_name,
+                                            duplicate_match.last_name)
+                       match_last_name,
+                    UTL_MATCH.jaro_winkler (second_person.first_name,
+                                            duplicate_match.first_name)
+                       match_first_name,
+                    UTL_MATCH.jaro_winkler (second_person.last_name,
+                                            duplicate_match.first_name)
+                       match_last_name2,
+                    UTL_MATCH.jaro_winkler (second_person.first_name,
+                                            duplicate_match.last_name)
+                       match_first_name2
+               FROM apps.hz_parties,
+                    duplicate_match,
+                    duplicate_match second_person
+              WHERE     (   apps.hz_Parties.creation_date >= (SYSDATE - 365)
+                         OR hz_parties.last_update_date >= (SYSDATE - 365))
+                    AND hz_parties.party_number = second_person.member_N_ID
+                    AND (   (    SOUNDEX (second_person.last_name) =
+                                    SOUNDEX (duplicate_match.last_name)
+                             AND SOUNDEX (second_person.first_name) =
+                                    SOUNDEX (duplicate_match.first_name) --and second_person.member_n_id < duplicate_match.member_n_id
+                                                                        )
+                         OR     SOUNDEX (second_person.last_name) =
+                                   SOUNDEX (duplicate_match.first_name)
+                            AND SOUNDEX (second_person.first_name) =
+                                   SOUNDEX (duplicate_match.last_name) --and second_person.member_n_id < duplicate_match.member_n_id
+                                                                      ))
+      WHERE    (    3 <=
+                       (  match_addr
+                        + match_md_year
+                        + match_md_univ
+                        + match_birthday)
+                AND (   (match_last_name > 0.94 AND match_first_name > 0.94)
+                     OR (match_last_name2 > 0.94 AND match_first_name2 > 0.94)))
+            OR (last_name = last_name2 AND first_name2 = first_name)
+   ORDER BY last_name, first_name;

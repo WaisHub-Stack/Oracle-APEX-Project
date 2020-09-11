@@ -1,0 +1,114 @@
+/* Formatted on 7/3/2020 7:10:36 PM (QP5 v5.240.12305.39446) */
+CREATE OR REPLACE FORCE VIEW APPS.DUPLICATE_MATCH
+(
+   MEMBER_N_ID,
+   FIRST_NAME,
+   LAST_NAME,
+   BIRTH_DATE,
+   MD_UNIVERSITY_DISP,
+   MD_YEAR_OBTAINED,
+   ADDRESS1,
+   ADDRESS2,
+   ADDRESS3,
+   ADDRESS4,
+   CITY,
+   PROVINCE,
+   POSTAL_CODE,
+   COUNTRY,
+   ORG_ID
+)
+AS
+   SELECT DISTINCT
+          hz_parties.party_number member_n_id,
+          hz_parties.person_first_name first_name,
+          hz_parties.person_last_name last_name,
+          TO_CHAR (HZ_PERSON_PROFILES.DATE_OF_BIRTH, 'DD-MON-YYYY')
+             BIRTH_DATE,
+          NULL MD_UNIVERSITY_DISP,
+          NULL MD_YEAR_OBTAINED,
+          hz_PARTY_SITES_V.address1,
+          hz_PARTY_SITES_V.address2,
+          hz_PARTY_SITES_V.address3,
+          hz_PARTY_SITES_V.address4,
+          hz_PARTY_SITES_V.city,
+          CASE
+             WHEN hz_PARTY_SITES_V.country = 'US'
+             THEN
+                hz_PARTY_SITES_V.state
+             WHEN hz_PARTY_SITES_V.province = 'Alberta'
+             THEN
+                'AB'
+             WHEN hz_PARTY_SITES_V.province = 'British Columbia'
+             THEN
+                'BC'
+             WHEN hz_PARTY_SITES_V.province = 'Manitoba'
+             THEN
+                'MB'
+             WHEN hz_PARTY_SITES_V.province = 'New Brunswick'
+             THEN
+                'NB'
+             WHEN hz_PARTY_SITES_V.province = 'Newfoundland'
+             THEN
+                'NL'
+             WHEN hz_PARTY_SITES_V.province = 'Newfoundland and Labrador'
+             THEN
+                'NL'
+             WHEN hz_PARTY_SITES_V.province = 'Nova Scotia'
+             THEN
+                'NS'
+             WHEN hz_PARTY_SITES_V.province = 'Northwest Territories'
+             THEN
+                'NT'
+             WHEN hz_PARTY_SITES_V.province = 'Nunavut'
+             THEN
+                'NU'
+             WHEN hz_PARTY_SITES_V.province = 'Ontario'
+             THEN
+                'ON'
+             WHEN hz_PARTY_SITES_V.province = 'Prince Edward Island'
+             THEN
+                'PE'
+             WHEN hz_PARTY_SITES_V.province = 'Quebec'
+             THEN
+                'QC'
+             WHEN hz_PARTY_SITES_V.province = 'QuEbec'
+             THEN
+                'QC'
+             WHEN hz_PARTY_SITES_V.province = 'Saskatchewan'
+             THEN
+                'SK'
+             WHEN hz_PARTY_SITES_V.province = 'Yukon'
+             THEN
+                'YT'
+             ELSE
+                NVL (hz_PARTY_SITES_V.province,
+                     NVL (hz_PARTY_SITES_V.state, ''))
+          END
+             province,
+          hz_PARTY_SITES_V.postal_code,
+          hz_PARTY_SITES_V.country,
+          hz_cust_acct_sites_all.ORG_ID
+     FROM apps.hz_parties,
+          apps.hz_cust_accounts,
+          apps.hr_organization_units_v,
+          apps.hz_cust_acct_sites_all,
+          apps.hz_PARTY_SITES_V,
+          AR.HZ_PERSON_PROFILES ---,                                    apps.AR_RCPSC_MED_DEGREE_AGV
+    WHERE     hz_parties.party_id = hz_cust_accounts.party_id
+          AND hz_parties.status = 'A'
+          AND hz_parties.party_type = 'PERSON'
+          AND REGEXP_LIKE (hz_parties.party_number, '^[0-9]{5,}?$')
+          AND hz_cust_accounts.CUST_ACCOUNT_ID =
+                 hz_cust_acct_sites_all.CUST_ACCOUNT_ID
+          AND hz_cust_accounts.status = 'A'
+          AND hz_cust_acct_sites_all.ORG_ID =
+                 hr_organization_units_v.organization_id
+          AND hz_cust_acct_sites_all.status = 'A'
+          AND hz_cust_acct_sites_all.ORG_ID = 84
+          --and hr_organization_units_v.ATTRIBUTE1 =  'RC'
+          AND hz_PARTY_SITES_V.party_id = hz_parties.party_id
+          AND hz_party_sites_v.status(+) = 'A'
+          AND hz_PARTY_SITES_V.identifying_address_flag = 'Y'
+          AND HZ_PERSON_PROFILES.PARTY_ID(+) = hz_parties.party_id
+---and HZ_PERSON_PROFILES.PERSON_PROFILE_ID            = AR_RCPSC_MED_DEGREE_AGV.PERSON_PROFILE_ID(+)
+;

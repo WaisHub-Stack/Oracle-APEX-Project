@@ -1,0 +1,18 @@
+CREATE OR REPLACE FORCE VIEW APPS.XX_CUSTOMER_MERGED
+(
+   CUSTOMER_MERGE_ID,
+   CUSTOMER_NAME,
+   CUSTOMER_ADDRESS,
+   DUPLICATE_NAME,
+   DUPLICATE_ADDRESS,
+   CREATION_DATE
+)
+AS
+   SELECT customer_merge_id,
+          customer_name,
+          CUSTOMER_ADDRESS,
+          DUPLICATE_NAME,
+          DUPLICATE_ADDRESS,
+          CREATION_DATE
+     FROM ra_customer_merges
+    WHERE process_flag = 'Y' AND ORG_ID = 84;
