@@ -28,7 +28,7 @@ prompt APPLICATION 135 - TEST
 --   Application:     135
 --   Name:            TEST
 --   Date and Time:   18:40 Friday July 3, 2020
---   Exported By:     WAQAR.HAMEED
+--   Exported By:     WAIS.MOHAMED
 --   Flashback:       0
 --   Export Type:     Application Export
 --   Version:         18.1.0.00.45
